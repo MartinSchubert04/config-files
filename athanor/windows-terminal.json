@@ -4,13 +4,39 @@
         {
             "command": "toggleFocusMode",
             "id": "User.ToggleFocusMode"
+        },
+        {
+            "command": "newTab",
+            "id": "User.NewTab"
+        },
+        {
+            "command": "closeTab",
+            "id": "User.CloseTab"
+        },
+        {
+            "command": "restoreLastClosed",
+            "id": "User.RestoreLastClosed"
         }
     ],
+    "initialCols": 164,
+    "initialRows": 46,
     "keybindings":
     [
         {
             "id": "User.ToggleFocusMode",
             "keys": "alt+shift+f"
+        },
+        {
+            "id": "User.NewTab",
+            "keys": "ctrl+t"
+        },
+        {
+            "id": "User.CloseTab",
+            "keys": "ctrl+w"
+        },
+        {
+            "id": "User.RestoreLastClosed",
+            "keys": "ctrl+shift+t"
         }
     ],
     "profiles":

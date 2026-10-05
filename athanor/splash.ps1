@@ -11,7 +11,9 @@ $ImgCols = 64; $ImgRows = 40      # parte visible de la imagen: 512x640 px = 64x
 $PanelCol = 71                    # columna donde arranca el panel derecho
 $MinCols = 120; $MinRows = 43
 
-if (-not $Force -and $env:TERM_PROGRAM -ne 'WezTerm') { return }
+# WezTerm muestra el PNG con el protocolo de iTerm2; Windows Terminal, el .six con Sixel.
+$term = if ($env:TERM_PROGRAM -eq 'WezTerm') { 'wezterm' } elseif ($env:WT_SESSION) { 'wt' } else { '' }
+if (-not $term) { if ($Force) { $term = 'wezterm' } else { return } }
 $size = $Host.UI.RawUI.WindowSize
 if ($size.Width -lt $MinCols -or $size.Height -lt $MinRows) { return }
 
@@ -115,6 +117,110 @@ At 27 $PanelCol ($dim + $moonLine)
 
 for ($r = 1; $r -le $ImgRows; $r++) { At $r ($ImgCols + 4) ($rule + $vt) }
 
+# --- Tercera columna (solo si la ventana es ancha): sala, ficha del personaje, elementos, carta ---
+$SideCol = 123; $SideWidth = 40
+if ($size.Width -ge $SideCol + $SideWidth - 1) {
+    for ($r = 1; $r -le $ImgRows; $r++) { At $r ($SideCol - 3) ($rule + $vt) }
+    $green = "$e[38;2;81;159;80m"; $blue = "$e[38;2;44;120;191m"
+    function Wrap([string]$text, [int]$width) {
+        $lines = @(); $line = ''
+        foreach ($w in $text -split ' ') {
+            if ($line -and ($line.Length + 1 + $w.Length) -gt $width) { $lines += $line; $line = $w }
+            elseif ($line) { $line += " $w" } else { $line = $w }
+        }
+        if ($line) { $lines += $line }
+        $lines
+    }
+    function Clip([string]$text, [int]$width) { if ($text.Length -gt $width) { $text.Substring(0, $width - 1) + '.' } else { $text } }
+
+    # Sala estilo MUD: la carpeta donde arranca la sesion, con sus subcarpetas como salidas.
+    # La descripcion depende del planeta que rige la hora.
+    $where = if ($PWD.Path -eq $HOME) { Join-Path $HOME 'Desktop' } else { $PWD.Path }
+    $rooms = @{
+        Sun     = 'Gold light slants across the workbench.'
+        Moon    = 'Silver light pools on the desk.'
+        Mars    = 'The furnace is hot and the bellows are working.'
+        Mercury = 'Quicksilver beads roll across open ledgers.'
+        Jupiter = 'Tall shelves groan under bound volumes.'
+        Venus   = 'Copper vessels gleam among green glass.'
+        Saturn  = 'Lead-grey dust lies on the unsorted stock.'
+    }
+    $row = 4
+    At $row $SideCol ($amber + '~ ' + (Clip (Split-Path $where -Leaf) ($SideWidth - 4)) + ' ~'); $row++
+    foreach ($l in Wrap ($rooms[$hourPlanet] + ' A terminal hums here.') $SideWidth) { At $row $SideCol ($cream + $l); $row++ }
+    $exits = @(Get-ChildItem $where -Directory -Name -ErrorAction SilentlyContinue | Select-Object -First 4)
+    if ($exits.Count -gt 0) {
+        foreach ($l in @(Wrap ('Obvious exits: ' + ($exits -join ', ')) $SideWidth | Select-Object -First 2)) { At $row $SideCol ($dim + $l); $row++ }
+    }
+
+    # Ficha: los datos del equipo con nombres de hoja de personaje.
+    # Se lee valor por valor: Get-ItemProperty sobre la clave entera falla si algun valor tiene un tipo raro.
+    function Reg([string]$key, [string]$value) { [Microsoft.Win32.Registry]::GetValue("HKEY_LOCAL_MACHINE\$key", $value, $null) }
+    $ntKey = 'SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+    $build = [string](Reg $ntKey 'CurrentBuild')
+    $os = [string](Reg $ntKey 'ProductName'); if ([int]$build -ge 22000) { $os = $os -replace 'Windows 10', 'Windows 11' }
+    $cpu = ([string](Reg 'HARDWARE\DESCRIPTION\System\CentralProcessor\0' 'ProcessorNameString') -replace '\(R\)|\(TM\)|CPU |Processor|\s+@.*$', '' -replace '\s+', ' ').Trim()
+    $gpu = [string](Reg 'SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000' 'DriverDesc')
+    $pack = 0
+    foreach ($k in 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall', 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall', 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall') {
+        $key = Get-Item $k -ErrorAction SilentlyContinue; if ($key) { $pack += $key.SubKeyCount }
+    }
+    $memTotal = 0; $memUsed = 0
+    try { $gc = [GC]::GetGCMemoryInfo(); $memTotal = $gc.TotalAvailableMemoryBytes; $memUsed = $gc.MemoryLoadBytes } catch {}
+    $up = [TimeSpan]::FromSeconds([Diagnostics.Stopwatch]::GetTimestamp() / [Diagnostics.Stopwatch]::Frequency)
+
+    $row = 10
+    $sheet = [ordered]@{
+        Race   = $os
+        Kernel = "10.0.$build.$(Reg $ntKey 'UBR')"
+        Class  = "pwsh $($PSVersionTable.PSVersion)"
+        Vessel = $cpu
+        Str    = "$([Environment]::ProcessorCount) threads"
+        Sight  = $gpu
+        Mind   = if ($memTotal) { '{0:N0} GB' -f ($memTotal / 1GB) } else { $null }
+        Pack   = "$pack items"
+        Awake  = '{0}d {1}h {2}m' -f $up.Days, $up.Hours, $up.Minutes
+    }
+    foreach ($k in $sheet.Keys) {
+        if (-not $sheet[$k]) { continue }
+        At $row $SideCol ($amber + $k.PadRight(8) + $cream + (Clip ([string]$sheet[$k]) ($SideWidth - 8))); $row++
+    }
+
+    # Cuatro barras: curso del sol (o de la noche), luz de la luna, disco y memoria
+    function Bar([string]$name, [double]$frac, [string]$color, [string]$note) {
+        $frac = [Math]::Max(0.0, [Math]::Min(1.0, $frac)); $n = [int][Math]::Round($frac * 16)
+        $script:barRow++
+        At $script:barRow $SideCol ($amber + $name.PadRight(8) + $color + ($full * $n) + $rule + ([string][char]0x2591 * (16 - $n)) + $dim + ' ' + $note)
+    }
+    function Pct([double]$x) { [string][int][Math]::Round($x * 100) + '%' }
+    $script:barRow = 21
+    $course = ($now - $start).TotalHours / ($span * 12)
+    Bar $(if ($isDay) { 'Sol' } else { 'Nox' }) $course $amber ($(if ($isDay) { 'day ' } else { 'night ' }) + (Pct $course))
+    $lit = (1 - [Math]::Cos(2 * [Math]::PI * $age / $synodic)) / 2
+    Bar 'Luna' $lit $cream ('lit ' + (Pct $lit))
+    $drive = New-Object IO.DriveInfo $env:SystemDrive
+    $diskUsed = 1 - $drive.AvailableFreeSpace / $drive.TotalSize
+    Bar 'Terra' $diskUsed $green ('disk ' + (Pct $diskUsed))
+    if ($memTotal) { Bar 'Aqua' ($memUsed / $memTotal) $blue ('mem ' + (Pct ($memUsed / $memTotal))) }
+
+    # Carta del dia: arcano mayor fijo para la fecha, con su atribucion de la Golden Dawn
+    $arcana = @(
+        '0|The Fool|Air|beginnings, a leap', 'I|The Magician|Mercury|will, craft', 'II|The High Priestess|Moon|secrets, intuition',
+        'III|The Empress|Venus|abundance', 'IV|The Emperor|Aries|order, authority', 'V|The Hierophant|Taurus|tradition, teaching',
+        'VI|The Lovers|Gemini|choice, union', 'VII|The Chariot|Cancer|drive, victory', 'VIII|Strength|Leo|courage, patience',
+        'IX|The Hermit|Virgo|solitude, search', 'X|Wheel of Fortune|Jupiter|turning luck', 'XI|Justice|Libra|balance, truth',
+        'XII|The Hanged Man|Water|surrender, a new view', 'XIII|Death|Scorpio|endings, change', 'XIV|Temperance|Sagittarius|mixing, measure',
+        'XV|The Devil|Capricorn|bondage, appetite', 'XVI|The Tower|Mars|upheaval', 'XVII|The Star|Aquarius|hope, renewal',
+        'XVIII|The Moon|Pisces|illusion, dreams', 'XIX|The Sun|Sun|joy, clarity', 'XX|Judgement|Fire|awakening', 'XXI|The World|Saturn|completion'
+    )
+    $seed = $sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($now.ToString('yyyy-MM-dd')))
+    $card = $arcana[$seed[0] % $arcana.Count] -split '\|'
+    At 28 $SideCol ($dim + 'The card of the day')
+    At 29 $SideCol ($bold + $cream + $card[0] + '  ' + $card[1])
+    At 30 $SideCol ($amber + $card[2] + $dim + ' - ' + $card[3])
+
+}
+
 # --- Salida: primero la imagen, despues el texto con posiciones absolutas ---
 # Se emite la secuencia de imagen a mano con doNotMoveCursor: `wezterm imgcat` mueve el cursor por su
 # cuenta y bajo ConPTY eso borraba la ultima celda de la imagen y dejaba un caracter suelto.
@@ -133,9 +239,15 @@ $pick = $pool | Get-Random
 $fixed = if ($Image) { $images | Where-Object BaseName -eq $Image | Select-Object -First 1 }
 if ($fixed) { $pick = $fixed } else { Set-Content $seenFile ($seen + $pick.Name) }
 
-$b64img = [Convert]::ToBase64String([IO.File]::ReadAllBytes($pick.FullName))
-# WezTerm deja vacia la ultima celda (abajo a la derecha) de una imagen inline; por eso los PNG miden
-# 520x640, con una columna extra de 8 px en el color de fondo, y se declaran de 65 columnas.
-$image = "$e]1337;File=inline=1;width=$($ImgCols + 1);height=$ImgRows;preserveAspectRatio=0;doNotMoveCursor=1:$b64img$([char]7)"
+if ($term -eq 'wt') {
+    $six = [IO.Path]::ChangeExtension($pick.FullName, '.six')
+    if (-not (Test-Path $six)) { return }   # falta correr scripts\make-sixel.ps1
+    $image = [IO.File]::ReadAllText($six)
+} else {
+    $b64img = [Convert]::ToBase64String([IO.File]::ReadAllBytes($pick.FullName))
+    # WezTerm deja vacia la ultima celda (abajo a la derecha) de una imagen inline; por eso los PNG miden
+    # 520x640, con una columna extra de 8 px en el color de fondo, y se declaran de 65 columnas.
+    $image = "$e]1337;File=inline=1;width=$($ImgCols + 1);height=$ImgRows;preserveAspectRatio=0;doNotMoveCursor=1:$b64img$([char]7)"
+}
 Clear-Host
 Write-Host ($sb.ToString() + "$e[H" + $image + "$e[$($ImgRows + 2);1H") -NoNewline

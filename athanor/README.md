@@ -42,21 +42,46 @@ Hacé una copia de tu `settings.json` y fusioná a mano las claves de `windows-t
 La fuente se ve nítida a 12 pt o 24 pt (con escala de pantalla al 100 %); los tamaños intermedios deforman los píxeles.
 `Hack Nerd Font Mono` queda como respaldo para los íconos del prompt, que la fuente VGA no trae.
 
-### 3. WezTerm con splash
+### 3. Splash (WezTerm y Windows Terminal)
 
 ```powershell
 Copy-Item ..\wezterm\.wezterm.lua ~\.wezterm.lua
 New-Item -ItemType Directory -Force ~\.config\athanor\splash
-Copy-Item splash.ps1 ~\.config\athanor\
-Copy-Item splash\*.png ~\.config\athanor\splash\
+Copy-Item splash.ps1, theme.ps1 ~\.config\athanor\
+Copy-Item splash\* ~\.config\athanor\splash\
 ```
 
-Al abrir WezTerm se imprime, como anifetch, un grabado elegido al azar y a su derecha el sigilo del host,
+WezTerm muestra el `.png` (protocolo de imágenes de iTerm2) y Windows Terminal 1.22+ el `.six` (Sixel).
+`scripts\make-sixel.ps1` genera los `.six` a partir de los `.png`.
+
+#### Cambiar de tema
+
+```powershell
+theme            # lista los temas y pregunta
+theme illusi0n   # cambia directo
+```
+
+| Tema | Qué aplica |
+|---|---|
+| `athanor` | Srcery, IBM VGA 8x16, prompt `athanor`, splash con grabados |
+| `illusi0n` | Dark+ / fondo violeta oscuro, Hack Nerd Font, prompt `illusi0n`, anifetch |
+
+`theme` reescribe `profiles.defaults` de Windows Terminal y guarda el nombre en `~\.config\athanor\theme`,
+que leen `.wezterm.lua` y el perfil de PowerShell. En la sesión donde se corre, rehace el prompt, los
+colores y el saludo (splash o anifetch) sin abrir otra pestaña. Los atajos y la barra de pestañas no cambian con el tema.
+
+Al abrir la terminal se imprime, como anifetch, un grabado elegido al azar y a su derecha el sigilo del host,
 el reloj, la fecha, la hora planetaria y la fase de la luna. Después queda el prompt normal.
 
 - Lo lanza el perfil de pwsh (`powershell/Microsoft.PowerShell_profile.ps1`) en lugar de anifetch.
 - La ventana no tiene borde: se arrastra desde la barra de pestañas o con Ctrl+Shift+clic izquierdo.
-- Solo se muestra en WezTerm y si la ventana tiene al menos 120x43 celdas (en splits chicos se saltea).
+- Con 162 columnas o más aparece una tercera columna: la carpeta actual descrita como sala de MUD
+  (subcarpetas como salidas, texto según el planeta de la hora), la ficha del equipo (Race = sistema,
+  Vessel = CPU, Sight = GPU, Mind = RAM, Pack = programas instalados), barras de Sol/Nox (avance del día
+  o la noche), Luna (iluminación), Terra (disco) y Aqua (memoria) y la carta del día (arcano mayor fijo
+  por fecha).
+- Atajos en las dos terminales: Ctrl+T pestaña nueva, Ctrl+W cerrar, Ctrl+Shift+T reabrir la última.
+- Solo se muestra en WezTerm y Windows Terminal, y si la ventana tiene al menos 120x43 celdas (en splits chicos se saltea).
 - El reloj es la hora de apertura; no se actualiza.
 - Amanecer y atardecer se calculan para Buenos Aires; cambiar `-Lat` y `-Lon` en `splash.ps1`.
 - Para sumar imágenes: dejar el archivo en `plates/` y correr `scripts\make-splash.ps1`.

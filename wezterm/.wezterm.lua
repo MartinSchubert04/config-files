@@ -241,8 +241,11 @@ config.integrated_title_button_color = "#BAA67F"
 -- Lo lanza el perfil de pwsh ($PROFILE) cuando TERM_PROGRAM es WezTerm, junto con oh-my-posh.
 config.default_prog = { "pwsh.exe", "-NoLogo" }
 -- config.default_prog = { "powershell.exe", "-NoLogo" }
-config.initial_cols = 128
-config.initial_rows = 46
+-- Mismo tamaño de ventana que Windows Terminal (164x46 celdas allá ≈ 1360x800 px). Al cambiar de
+-- fuente la ventana conserva ese tamaño en píxeles en vez de conservar filas y columnas.
+config.adjust_window_size_when_changing_font_size = false
+config.initial_cols = 166
+config.initial_rows = 44
 -- config.window_background_image = "C:/dev/misc/berk.png"
 -- config.window_background_image_hsb = {
 -- 	brightness = 0.1,
@@ -267,6 +270,51 @@ config.mouse_bindings = {
 		action = act.StartWindowDrag,
 	},
 }
+
+-- Tema elegido con el comando `theme` (athanor o illusi0n). WezTerm recarga solo cuando cambia el archivo.
+local theme_file = wezterm.home_dir .. "\\.config\\athanor\\theme"
+wezterm.add_to_config_reload_watch_list(theme_file)
+local function current_theme()
+	local f = io.open(theme_file, "r")
+	if not f then
+		return "athanor"
+	end
+	local name = (f:read("*l") or ""):gsub("%s+", "")
+	f:close()
+	return name ~= "" and name or "athanor"
+end
+
+-- illusi0n: el look anterior (Hack, fondo violeta oscuro, algo de transparencia)
+if current_theme() == "illusi0n" then
+	config.font = wezterm.font("Hack Nerd Font Mono")
+	config.freetype_load_target = "Normal"
+	config.freetype_render_target = "Normal"
+	-- 12 pt como en Windows Terminal: a 18 pt las 130 columnas de anifetch no entran en este ancho
+	config.font_size = 12.0
+	config.window_background_opacity = 0.9
+	config.initial_cols = 132
+	config.initial_rows = 38
+	config.color_scheme = "Cloud (terminal.sexy)"
+	config.colors = {
+		background = "#0c0b0f",
+		cursor_border = "#bea3c7",
+		cursor_bg = "#bea3c7",
+		tab_bar = {
+			background = "#0c0b0f",
+			inactive_tab_edge = "#0c0b0f",
+			active_tab = { bg_color = "#17151c", fg_color = "#bea3c7" },
+			inactive_tab = { bg_color = "#0c0b0f", fg_color = "#f8f2f5" },
+			new_tab = { bg_color = "#0c0b0f", fg_color = "white" },
+		},
+	}
+	config.window_frame = {
+		font = wezterm.font({ family = "Hack Nerd Font Mono", weight = "Regular" }),
+		font_size = 11.0,
+		active_titlebar_bg = "#0c0b0f",
+		inactive_titlebar_bg = "#0c0b0f",
+	}
+	config.integrated_title_button_color = "#bea3c7"
+end
 
 -- and finally, return the configuration to wezterm
 return config
