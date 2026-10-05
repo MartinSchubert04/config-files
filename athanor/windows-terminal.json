@@ -1,0 +1,83 @@
+{
+    "actions":
+    [
+        {
+            "command": "toggleFocusMode",
+            "id": "User.ToggleFocusMode"
+        }
+    ],
+    "keybindings":
+    [
+        {
+            "id": "User.ToggleFocusMode",
+            "keys": "alt+shift+f"
+        }
+    ],
+    "profiles":
+    {
+        "defaults":
+        {
+            "antialiasingMode": "aliased",
+            "colorScheme": "Srcery",
+            "cursorShape": "filledBox",
+            "font":
+            {
+                "face": "PxPlus IBM VGA 8x16, Hack Nerd Font Mono",
+                "size": 12
+            },
+            "opacity": 100,
+            "padding": "8",
+            "useAcrylic": false
+        }
+    },
+    "schemes":
+    [
+        {
+            "name": "Srcery",
+            "background": "#1C1B19",
+            "foreground": "#FCE8C3",
+            "cursorColor": "#FBB829",
+            "selectionBackground": "#918175",
+            "black": "#1C1B19",
+            "red": "#EF2F27",
+            "green": "#519F50",
+            "yellow": "#FBB829",
+            "blue": "#2C78BF",
+            "purple": "#E02C6D",
+            "cyan": "#0AAEB3",
+            "white": "#BAA67F",
+            "brightBlack": "#918175",
+            "brightRed": "#F75341",
+            "brightGreen": "#98BC37",
+            "brightYellow": "#FED06E",
+            "brightBlue": "#68A8E4",
+            "brightPurple": "#FF5C8F",
+            "brightCyan": "#2BE4D0",
+            "brightWhite": "#FCE8C3"
+        }
+    ],
+    "theme": "Athanor",
+    "themes":
+    [
+        {
+            "name": "Athanor",
+            "tab":
+            {
+                "background": "#1C1B19FF",
+                "showCloseButton": "hover",
+                "unfocusedBackground": "#1C1B19FF"
+            },
+            "tabRow":
+            {
+                "background": "#1C1B19FF",
+                "unfocusedBackground": "#1C1B19FF"
+            },
+            "window":
+            {
+                "applicationTheme": "dark",
+                "useMica": false
+            }
+        }
+    ],
+    "useAcrylicInTabRow": false
+}

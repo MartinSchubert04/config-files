@@ -9,7 +9,10 @@ try {
 Clear-Host
 
 # --- Oh My Posh ---
-oh-my-posh init pwsh --config 'C:\Users\Martin\.posh\themes\illusi0n.omp.json' | Invoke-Expression
+# WezTerm y Windows Terminal usan la paleta Srcery; el resto (VS Code, SSH) sigue con illusi0n.
+$athanor = $env:TERM_PROGRAM -ne 'vscode' -and ($env:TERM_PROGRAM -eq 'WezTerm' -or $env:WT_SESSION)
+$poshTheme = if ($athanor) { 'athanor' } else { 'illusi0n' }
+oh-my-posh init pwsh --config "C:\Users\Martin\.posh\themes\$poshTheme.omp.json" | Invoke-Expression
 
 # --- Terminal Icons (carga diferida) ---
 # Import-Module normal tarda ~440ms y bloquea el arranque.
@@ -34,6 +37,20 @@ Set-PSReadLineOption -Colors @{
     Comment       = "#565f89"
     Error         = "#f7768e"
 }
+if ($athanor) {
+    Set-PSReadLineOption -Colors @{
+        Default          = "#FCE8C3"
+        Command          = "#FCE8C3"
+        Parameter        = "#BAA67F"
+        String           = "#98BC37"
+        Operator         = "#0AAEB3"
+        Variable         = "#FED06E"
+        Number           = "#FF5F00"
+        Comment          = "#918175"
+        Error            = "#EF2F27"
+        InlinePrediction = "#918175"
+    }
+}
 
 # --- Keybinding para alternar vista de predicciones ---
 Set-PSReadLineKeyHandler -Key "Ctrl+f" `
@@ -50,7 +67,10 @@ Set-PSReadLineKeyHandler -Key "Ctrl+f" `
 
 # --- Fastfetch con config explícita (path corregido) ---
 # En la terminal integrada de VS Code o en una sesión de OpenSSH no se muestra la animación.
-if ($env:TERM_PROGRAM -ne 'vscode' -and -not $env:SSH_CONNECTION) {
+# En WezTerm va el splash de athanor en lugar de anifetch.
+if ($env:TERM_PROGRAM -eq 'WezTerm') {
+    & "$HOME\.config\athanor\splash.ps1"
+} elseif ($env:TERM_PROGRAM -ne 'vscode' -and -not $env:SSH_CONNECTION) {
     anifetch "C:\Users\Martin\.config\fastfetch\blackhole.mp4" -W 55 -H 50 -ca "--symbols braille --fg-only" --loop 0 --center
 }
 
