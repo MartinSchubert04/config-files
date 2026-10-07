@@ -1,7 +1,10 @@
-# Genera un .six por cada PNG del splash, para terminales con Sixel (Windows Terminal 1.22+).
+# Genera los .six de cada PNG del splash, para terminales con Sixel (Windows Terminal 1.22+).
 # Windows Terminal dibuja Sixel sobre una grilla virtual de 10x20 px por celda, así que el dibujo de
 # 256x320 puntos se emite a 640x800 (64x40 celdas): con celdas de 8x16 cada punto queda de 2x2 px.
-# Solo se pinta el color claro; el fondo queda transparente y toma el de la terminal.
+# Salen dos archivos por imagen, cada uno con un solo color y el resto transparente:
+#   nombre.six      pinta los puntos claros; para paletas oscuras, donde el fondo es el de la terminal
+#   nombre.ink.six  pinta los puntos oscuros; para paletas claras, donde el claro es el de la terminal
+# El color escrito es solo el de Srcery: splash.ps1 lo reemplaza por el de la paleta activa.
 param(
     [string]$Dir = (Join-Path $env:USERPROFILE '.config\athanor\splash'),
     [string]$Light = '#BAA67F'
@@ -23,29 +26,32 @@ Get-ChildItem $Dir -Filter *.png | ForEach-Object {
     }
     $bmp.Dispose()
 
-    $sb = New-Object System.Text.StringBuilder
-    [void]$sb.Append("${esc}P0;1;0q`"1;1;$OutW;$OutH#1;2;$rgb")
-    for ($band = 0; $band * 6 -lt $OutH; $band++) {
-        [void]$sb.Append('#1')
-        $prev = -1; $run = 0
-        for ($ox = 0; $ox -le $OutW; $ox++) {
-            $v = -1
-            if ($ox -lt $OutW) {
-                $v = 0; $lx = [int][Math]::Floor($ox / 2.5)
-                for ($bit = 0; $bit -lt 6; $bit++) {
-                    $oy = $band * 6 + $bit
-                    if ($oy -lt $OutH -and $lit[$lx, [int][Math]::Floor($oy / 2.5)]) { $v = $v -bor (1 -shl $bit) }
+    foreach ($variant in @{ Ext = '.six'; Paint = $true }, @{ Ext = '.ink.six'; Paint = $false }) {
+        $paint = $variant.Paint
+        $sb = New-Object System.Text.StringBuilder
+        [void]$sb.Append("${esc}P0;1;0q`"1;1;$OutW;$OutH#1;2;$rgb")
+        for ($band = 0; $band * 6 -lt $OutH; $band++) {
+            [void]$sb.Append('#1')
+            $prev = -1; $run = 0
+            for ($ox = 0; $ox -le $OutW; $ox++) {
+                $v = -1
+                if ($ox -lt $OutW) {
+                    $v = 0; $lx = [int][Math]::Floor($ox / 2.5)
+                    for ($bit = 0; $bit -lt 6; $bit++) {
+                        $oy = $band * 6 + $bit
+                        if ($oy -lt $OutH -and $lit[$lx, [int][Math]::Floor($oy / 2.5)] -eq $paint) { $v = $v -bor (1 -shl $bit) }
+                    }
                 }
+                if ($v -eq $prev) { $run++; continue }
+                if ($run -gt 0) {
+                    $ch = [char](63 + $prev)
+                    if ($run -gt 3) { [void]$sb.Append("!$run$ch") } else { [void]$sb.Append([string]$ch * $run) }
+                }
+                $prev = $v; $run = 1
             }
-            if ($v -eq $prev) { $run++; continue }
-            if ($run -gt 0) {
-                $ch = [char](63 + $prev)
-                if ($run -gt 3) { [void]$sb.Append("!$run$ch") } else { [void]$sb.Append([string]$ch * $run) }
-            }
-            $prev = $v; $run = 1
+            [void]$sb.Append('-')
         }
-        [void]$sb.Append('-')
+        [void]$sb.Append("$esc\")
+        [IO.File]::WriteAllText([IO.Path]::ChangeExtension($_.FullName, $variant.Ext), $sb.ToString(), [Text.Encoding]::ASCII)
     }
-    [void]$sb.Append("$esc\")
-    [IO.File]::WriteAllText([IO.Path]::ChangeExtension($_.FullName, '.six'), $sb.ToString(), [Text.Encoding]::ASCII)
 }

@@ -20,9 +20,17 @@ if ($size.Width -lt $MinCols -or $size.Height -lt $MinRows) { return }
 $images = @(Get-ChildItem (Join-Path $PSScriptRoot 'splash') -Filter *.png -ErrorAction SilentlyContinue)
 if ($images.Count -eq 0) { return }
 
+# Paleta activa: la elige `theme` y la guarda en el archivo palette; los colores salen de palettes.json
+$palName = Get-Content (Join-Path $PSScriptRoot 'palette') -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $palName) { $palName = 'srcery' }
+$pal = (Get-Content (Join-Path $PSScriptRoot 'palettes.json') -Raw -ErrorAction SilentlyContinue | ConvertFrom-Json).$palName
+if (-not $pal) { return }
+
 $e = [char]27
-$amber = "$e[38;2;251;184;41m"; $cream = "$e[38;2;252;232;195m"; $dim = "$e[38;2;145;129;117m"
-$rule = "$e[38;2;60;58;54m"; $bold = "$e[1m"; $reset = "$e[0m"
+function Rgb([string]$hex) { $n = [Convert]::ToInt32($hex.TrimStart('#'), 16); ($n -shr 16), (($n -shr 8) -band 255), ($n -band 255) }
+function Fg([string]$hex) { "$e[38;2;$((Rgb $hex) -join ';')m" }
+$amber = Fg $pal.active; $cream = Fg $pal.fg; $dim = Fg $pal.dim; $sigil = Fg $pal.sigil
+$rule = Fg $pal.border; $bold = "$e[1m"; $reset = "$e[0m"
 $full = [string][char]0x2588; $upper = [string][char]0x2580; $lower = [string][char]0x2584
 $sb = New-Object System.Text.StringBuilder
 function At([int]$row, [int]$col, [string]$text) { [void]$sb.Append("$e[$row;${col}H$text$reset") }
@@ -68,13 +76,13 @@ $sha = [Security.Cryptography.SHA256]::Create()
 $hash = $sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($env:COMPUTERNAME))
 $b64 = [Convert]::ToBase64String($hash).TrimEnd('=')
 $hz = [string][char]0x2500; $vt = [string][char]0x2502
-At 4 $PanelCol ($amber + [char]0x250C + ($hz * 12) + [char]0x2510)
+At 4 $PanelCol ($sigil + [char]0x250C + ($hz * 12) + [char]0x2510)
 for ($y = 0; $y -lt 5; $y++) {
     $line = ''
     foreach ($x in 0, 1, 2, 1, 0) { $line += if ($hash[$y * 3 + $x] -band 1) { $full * 2 } else { '  ' } }
-    At (5 + $y) $PanelCol "$amber$vt $line $vt"
+    At (5 + $y) $PanelCol "$sigil$vt $line $vt"
 }
-At 10 $PanelCol ($amber + [char]0x2514 + ($hz * 12) + [char]0x2518)
+At 10 $PanelCol ($sigil + [char]0x2514 + ($hz * 12) + [char]0x2518)
 At 5 ($PanelCol + 16) ($dim + $env:COMPUTERNAME.ToLower())
 At 6 ($PanelCol + 16) ($dim + 'host sigil, from')
 At 7 ($PanelCol + 16) ($dim + 'SHA256:' + $b64.Substring(0, 5) + '...' + $b64.Substring($b64.Length - 3))
@@ -121,7 +129,7 @@ for ($r = 1; $r -le $ImgRows; $r++) { At $r ($ImgCols + 4) ($rule + $vt) }
 $SideCol = 123; $SideWidth = 40
 if ($size.Width -ge $SideCol + $SideWidth - 1) {
     for ($r = 1; $r -le $ImgRows; $r++) { At $r ($SideCol - 3) ($rule + $vt) }
-    $green = "$e[38;2;81;159;80m"; $blue = "$e[38;2;44;120;191m"
+    $green = Fg $pal.terra; $verdigris = Fg $pal.aqua
     function Wrap([string]$text, [int]$width) {
         $lines = @(); $line = ''
         foreach ($w in $text -split ' ') {
@@ -201,7 +209,7 @@ if ($size.Width -ge $SideCol + $SideWidth - 1) {
     $drive = New-Object IO.DriveInfo $env:SystemDrive
     $diskUsed = 1 - $drive.AvailableFreeSpace / $drive.TotalSize
     Bar 'Terra' $diskUsed $green ('disk ' + (Pct $diskUsed))
-    if ($memTotal) { Bar 'Aqua' ($memUsed / $memTotal) $blue ('mem ' + (Pct ($memUsed / $memTotal))) }
+    if ($memTotal) { Bar 'Aqua' ($memUsed / $memTotal) $verdigris ('mem ' + (Pct ($memUsed / $memTotal))) }
 
     # Carta del dia: arcano mayor fijo para la fecha, con su atribucion de la Golden Dawn
     $arcana = @(
@@ -239,12 +247,45 @@ $pick = $pool | Get-Random
 $fixed = if ($Image) { $images | Where-Object BaseName -eq $Image | Select-Object -First 1 }
 if ($fixed) { $pick = $fixed } else { Set-Content $seenFile ($seen + $pick.Name) }
 
+# El grabado conserva sus tonos: lo oscuro va en plate[0] y lo claro en plate[1]. En una paleta oscura
+# plate[0] es el fondo de la terminal; en una clara lo es plate[1], y el grabado queda como bloque oscuro.
+$ink = $pal.plate[0]; $paper = $pal.plate[1]
 if ($term -eq 'wt') {
-    $six = [IO.Path]::ChangeExtension($pick.FullName, '.six')
+    # Cada .six pinta un solo color y deja el otro transparente; aca se le cambia ese color por el de la paleta
+    $six = [IO.Path]::ChangeExtension($pick.FullName, $(if ($pal.light) { '.ink.six' } else { '.six' }))
     if (-not (Test-Path $six)) { return }   # falta correr scripts\make-sixel.ps1
-    $image = [IO.File]::ReadAllText($six)
+    $pct = Rgb $(if ($pal.light) { $ink } else { $paper }) | ForEach-Object { [int]($_ / 2.55) }
+    $image = [IO.File]::ReadAllText($six) -replace '#1;2;\d+;\d+;\d+', "#1;2;$($pct -join ';')"
 } else {
-    $b64img = [Convert]::ToBase64String([IO.File]::ReadAllBytes($pick.FullName))
+    $file = $pick.FullName
+    if ($palName -ne 'srcery') {
+        # Los PNG traen los dos colores de Srcery; para otra paleta se recolorean una vez y se guardan aparte
+        $file = Join-Path $PSScriptRoot "splash\$palName\$($pick.Name)"
+        if (-not (Test-Path $file) -or (Get-Item $file).LastWriteTime -lt $pick.LastWriteTime) {
+            Add-Type -AssemblyName System.Drawing
+            New-Item -ItemType Directory -Force (Split-Path $file) | Out-Null
+            $src = New-Object System.Drawing.Bitmap $pick.FullName
+            $dst = New-Object System.Drawing.Bitmap $src.Width, $src.Height
+            $maps = foreach ($pair in @('#1C1B19', $ink), @('#BAA67F', $paper)) {
+                $m = New-Object System.Drawing.Imaging.ColorMap
+                $m.OldColor = [System.Drawing.ColorTranslator]::FromHtml($pair[0])
+                $m.NewColor = [System.Drawing.ColorTranslator]::FromHtml($pair[1])
+                $m
+            }
+            $attr = New-Object System.Drawing.Imaging.ImageAttributes
+            $attr.SetRemapTable([System.Drawing.Imaging.ColorMap[]]$maps)
+            $g = [System.Drawing.Graphics]::FromImage($dst)
+            $g.InterpolationMode = 'NearestNeighbor'; $g.PixelOffsetMode = 'Half'
+            $area = New-Object System.Drawing.Rectangle 0, 0, $src.Width, $src.Height
+            $g.DrawImage($src, $area, 0, 0, $src.Width, $src.Height, [System.Drawing.GraphicsUnit]::Pixel, $attr)
+            # La columna extra de la derecha va en el fondo de la terminal, que en una paleta clara no es la tinta
+            $brush = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml($pal.bg))
+            $g.FillRectangle($brush, $ImgCols * 8, 0, $src.Width - $ImgCols * 8, $src.Height)
+            $g.Dispose(); $src.Dispose()
+            $dst.Save($file, [System.Drawing.Imaging.ImageFormat]::Png); $dst.Dispose()
+        }
+    }
+    $b64img = [Convert]::ToBase64String([IO.File]::ReadAllBytes($file))
     # WezTerm deja vacia la ultima celda (abajo a la derecha) de una imagen inline; por eso los PNG miden
     # 520x640, con una columna extra de 8 px en el color de fondo, y se declaran de 65 columnas.
     $image = "$e]1337;File=inline=1;width=$($ImgCols + 1);height=$ImgRows;preserveAspectRatio=0;doNotMoveCursor=1:$b64img$([char]7)"

@@ -271,17 +271,52 @@ config.mouse_bindings = {
 	},
 }
 
--- Tema elegido con el comando `theme` (athanor o illusi0n). WezTerm recarga solo cuando cambia el archivo.
-local theme_file = wezterm.home_dir .. "\\.config\\athanor\\theme"
-wezterm.add_to_config_reload_watch_list(theme_file)
-local function current_theme()
-	local f = io.open(theme_file, "r")
+-- Tema y paleta elegidos con el comando `theme`. WezTerm recarga solo cuando cambia alguno de los archivos.
+local athanor_dir = wezterm.home_dir .. "\\.config\\athanor\\"
+local function read_file(name, format)
+	wezterm.add_to_config_reload_watch_list(athanor_dir .. name)
+	local f = io.open(athanor_dir .. name, "r")
 	if not f then
-		return "athanor"
+		return nil
 	end
-	local name = (f:read("*l") or ""):gsub("%s+", "")
+	local text = f:read(format)
 	f:close()
-	return name ~= "" and name or "athanor"
+	return text
+end
+local function current(name, default)
+	local value = (read_file(name, "*l") or ""):gsub("%s+", "")
+	return value ~= "" and value or default
+end
+local function current_theme()
+	return current("theme", "athanor")
+end
+
+-- Paleta de athanor (srcery, umber, vellum, orpiment o cinnabar) tomada de palettes.json.
+-- Si falta el archivo o la paleta, quedan los colores de Srcery definidos arriba.
+local ok, palettes = pcall(wezterm.json_parse, read_file("palettes.json", "*a") or "{}")
+local p = ok and palettes[current("palette", "srcery")]
+if p then
+	config.color_schemes["Athanor"] = {
+		background = p.bg,
+		foreground = p.fg,
+		cursor_bg = p.active,
+		cursor_border = p.active,
+		cursor_fg = p.bg,
+		selection_bg = p.dim,
+		selection_fg = p.bg,
+		ansi = { table.unpack(p.ansi, 1, 8) },
+		brights = { table.unpack(p.ansi, 9, 16) },
+	}
+	config.colors.tab_bar = {
+		background = p.bar,
+		active_tab = { bg_color = p.bg, fg_color = p.active },
+		inactive_tab_edge = p.bar,
+		inactive_tab = { bg_color = p.bar, fg_color = p.barfg },
+		new_tab = { bg_color = p.bar, fg_color = p.barfg },
+	}
+	config.window_frame.active_titlebar_bg = p.bar
+	config.window_frame.inactive_titlebar_bg = p.bar
+	config.integrated_title_button_color = p.barfg
 end
 
 -- illusi0n: el look anterior (Hack, fondo violeta oscuro, algo de transparencia)

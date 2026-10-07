@@ -5,19 +5,19 @@
       "alignment": "left",
       "segments": [
         {
-          "foreground": "#FBB829",
+          "foreground": "p:accent",
           "style": "plain",
           "template": "@ ",
           "type": "text"
         },
         {
-          "foreground": "#BAA67F",
+          "foreground": "p:muted",
           "style": "plain",
           "template": "{{ .UserName }}:",
           "type": "session"
         },
         {
-          "foreground": "#FCE8C3",
+          "foreground": "p:fg",
           "options": {
             "folder_separator_icon": "/",
             "style": "full"
@@ -27,12 +27,12 @@
           "type": "path"
         },
         {
-          "foreground": "#FBB829",
+          "foreground": "p:accent",
           "foreground_templates": [
-            "{{ if or (.Working.Changed) (.Staging.Changed) }}#FF5F00{{ end }}",
-            "{{ if and (gt .Ahead 0) (gt .Behind 0) }}#0AAEB3{{ end }}",
-            "{{ if gt .Ahead 0 }}#98BC37{{ end }}",
-            "{{ if gt .Behind 0 }}#EF2F27{{ end }}"
+            "{{ if or (.Working.Changed) (.Staging.Changed) }}p:warn{{ end }}",
+            "{{ if and (gt .Ahead 0) (gt .Behind 0) }}p:cyan{{ end }}",
+            "{{ if gt .Ahead 0 }}p:lime{{ end }}",
+            "{{ if gt .Behind 0 }}p:red{{ end }}"
           ],
           "options": {
             "branch_template": "{{ trunc 25 .Branch }}",
@@ -40,25 +40,25 @@
             "fetch_upstream_icon": true
           },
           "style": "plain",
-          "template": "<#918175>on</> {{ .UpstreamIcon }} {{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }}{{ if .Working.Changed }}  {{ .Working.String }}{{ end }}{{ if and (.Working.Changed) (.Staging.Changed) }} |{{ end }}{{ if .Staging.Changed }}  {{ .Staging.String }}{{ end }}{{ if gt .StashCount 0 }}  {{ .StashCount }}{{ end }} ",
+          "template": "<p:dim>on</> {{ .UpstreamIcon }} {{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }}{{ if .Working.Changed }}  {{ .Working.String }}{{ end }}{{ if and (.Working.Changed) (.Staging.Changed) }} |{{ end }}{{ if .Staging.Changed }}  {{ .Staging.String }}{{ end }}{{ if gt .StashCount 0 }}  {{ .StashCount }}{{ end }} ",
           "type": "git"
         },
         {
-          "foreground": "#519F50",
+          "foreground": "p:green",
           "style": "plain",
           "template": " {{ if .Venv }}{{ .Venv }} {{ end }}{{ .Full }} ",
           "type": "python"
         },
         {
-          "foreground": "#519F50",
+          "foreground": "p:green",
           "style": "plain",
           "template": " {{ .Full }} ",
           "type": "node"
         },
         {
-          "foreground": "#FBB829",
+          "foreground": "p:accent",
           "foreground_templates": [
-            "{{ if gt .Code 0 }}#EF2F27{{ end }}"
+            "{{ if gt .Code 0 }}p:red{{ end }}"
           ],
           "style": "plain",
           "template": "❯ ",
@@ -70,13 +70,13 @@
     {
       "segments": [
         {
-          "foreground": "#EF2F27",
+          "foreground": "p:red",
           "style": "plain",
           "template": "✗ {{ .Code }} ",
           "type": "status"
         },
         {
-          "foreground": "#918175",
+          "foreground": "p:dim",
           "options": {
             "style": "round",
             "threshold": 2000
@@ -86,7 +86,7 @@
           "type": "executiontime"
         },
         {
-          "foreground": "#918175",
+          "foreground": "p:dim",
           "options": {
             "time_format": "15:04"
           },
@@ -98,6 +98,66 @@
       "type": "rprompt"
     }
   ],
+  "palette": {
+    "accent": "#FBB829",
+    "muted": "#BAA67F",
+    "fg": "#FCE8C3",
+    "warn": "#FF5F00",
+    "cyan": "#0AAEB3",
+    "lime": "#98BC37",
+    "red": "#EF2F27",
+    "dim": "#918175",
+    "green": "#519F50"
+  },
+  "palettes": {
+    "template": "{{ .Env.ATHANOR_PALETTE }}",
+    "list": {
+      "umber": {
+        "accent": "#d49a3a",
+        "muted": "#cfc1a3",
+        "fg": "#e3d6b8",
+        "warn": "#dd7357",
+        "cyan": "#7aa08c",
+        "lime": "#b0b878",
+        "red": "#d25f42",
+        "dim": "#8d7d65",
+        "green": "#8f9a5a"
+      },
+      "vellum": {
+        "accent": "#7c5510",
+        "muted": "#8d7d65",
+        "fg": "#1f1914",
+        "warn": "#7f2a1a",
+        "cyan": "#3e6650",
+        "lime": "#4a5220",
+        "red": "#9a3522",
+        "dim": "#6e5f4c",
+        "green": "#5a6328"
+      },
+      "orpiment": {
+        "accent": "#7a4f06",
+        "muted": "#7d6c4c",
+        "fg": "#241a0c",
+        "warn": "#82291a",
+        "cyan": "#2f6048",
+        "lime": "#414a14",
+        "red": "#9a3522",
+        "dim": "#6a5737",
+        "green": "#4f5a1c"
+      },
+      "cinnabar": {
+        "accent": "#e2a24a",
+        "muted": "#d8c4ac",
+        "fg": "#ecd9c0",
+        "warn": "#ff7a56",
+        "cyan": "#8cb8a0",
+        "lime": "#c0bf82",
+        "red": "#f0643f",
+        "dim": "#a8857a",
+        "green": "#acaa6c"
+      }
+    }
+  },
   "pwd": "osc7",
   "version": 4
 }

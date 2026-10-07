@@ -19,6 +19,7 @@ Se aplica encima de `windows-terminal/settings.json`.
 | `splash/` | Grabados ya procesados (512x640, dos colores) entre los que elige el splash |
 | `plates/` | Originales en dominio público, vía Wikimedia Commons: Doré, Miguel Ángel, Caravaggio, Cabanel, Bouguereau, Bruegel, Botticelli, Friedrich, Fuseli, Blake, Martin, Rafael, Reni |
 | `scripts/make-splash.ps1` | Regenera `splash/` a partir de `plates/` |
+| `palettes.json` | Paletas de colores: Srcery y las cuatro de athanor (Umber, Vellum, Orpiment, Cinnabar) |
 
 ## Instalación
 
@@ -47,27 +48,36 @@ La fuente se ve nítida a 12 pt o 24 pt (con escala de pantalla al 100 %); los t
 ```powershell
 Copy-Item ..\wezterm\.wezterm.lua ~\.wezterm.lua
 New-Item -ItemType Directory -Force ~\.config\athanor\splash
-Copy-Item splash.ps1, theme.ps1 ~\.config\athanor\
+Copy-Item splash.ps1, theme.ps1, palettes.json ~\.config\athanor\
 Copy-Item splash\* ~\.config\athanor\splash\
 ```
 
 WezTerm muestra el `.png` (protocolo de imágenes de iTerm2) y Windows Terminal 1.22+ el `.six` (Sixel).
-`scripts\make-sixel.ps1` genera los `.six` a partir de los `.png`.
+`scripts\make-sixel.ps1` genera los `.six` a partir de los `.png`: `nombre.six` para las paletas oscuras y
+`nombre.ink.six` para las claras.
 
 #### Cambiar de tema
 
 ```powershell
 theme            # lista los temas y pregunta
 theme illusi0n   # cambia directo
+theme umber      # athanor con la paleta umber
+theme athanor    # athanor con la última paleta usada
 ```
 
 | Tema | Qué aplica |
 |---|---|
-| `athanor` | Srcery, IBM VGA 8x16, prompt `athanor`, splash con grabados |
+| `srcery`, `umber`, `vellum`, `orpiment`, `cinnabar` | athanor con esa paleta: IBM VGA 8x16, prompt `athanor`, splash con grabados |
 | `illusi0n` | Dark+ / fondo violeta oscuro, Hack Nerd Font, prompt `illusi0n`, anifetch |
 
-`theme` reescribe `profiles.defaults` de Windows Terminal y guarda el nombre en `~\.config\athanor\theme`,
-que leen `.wezterm.lua` y el perfil de PowerShell. En la sesión donde se corre, rehace el prompt, los
+Las paletas `umber` (oscura, sepia), `vellum` (clara, pergamino), `orpiment` (clara, amarilla) y `cinnabar`
+(oscura, roja) son las de [athanor](https://github.com/script-wizards/athanor); `srcery` es la original de este
+tema. Todas están en `palettes.json`, salvo los colores del prompt, que van repetidos en `athanor.omp.json`.
+En las paletas claras el grabado conserva sus tonos y queda como un bloque oscuro sobre el fondo claro.
+
+`theme` reescribe `profiles.defaults` de Windows Terminal (y le agrega el esquema de la paleta) y guarda el
+tema en `~\.config\athanor\theme` y la paleta en `~\.config\athanor\palette`, que leen `.wezterm.lua`, el
+perfil de PowerShell y el splash. En la sesión donde se corre, rehace el prompt, los
 colores y el saludo (splash o anifetch) sin abrir otra pestaña. Los atajos y la barra de pestañas no cambian con el tema.
 
 Al abrir la terminal se imprime, como anifetch, un grabado elegido al azar y a su derecha el sigilo del host,

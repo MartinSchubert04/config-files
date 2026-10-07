@@ -9,7 +9,8 @@ try {
 Clear-Host
 
 # --- Oh My Posh ---
-# El tema elegido con `theme` se guarda en ~\.config\athanor\theme (athanor o illusi0n).
+# El tema elegido con `theme` se guarda en ~\.config\athanor\theme (athanor o illusi0n) y, para athanor,
+# la paleta en ~\.config\athanor\palette (srcery, umber, vellum, orpiment o cinnabar; ver palettes.json).
 # athanor solo aplica en WezTerm y Windows Terminal; VS Code y SSH siguen siempre con illusi0n.
 # Set-ShellTheme aplica prompt y colores de PSReadLine segun el tema guardado y devuelve si es athanor.
 function Set-ShellTheme {
@@ -17,21 +18,26 @@ function Set-ShellTheme {
     if (-not $name) { $name = 'athanor' }
     $isAthanor = $name -eq 'athanor' -and $env:TERM_PROGRAM -ne 'vscode' -and ($env:TERM_PROGRAM -eq 'WezTerm' -or $env:WT_SESSION)
 
+    $palette = Get-Content "$HOME\.config\athanor\palette" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $palette) { $palette = 'srcery' }
+    $env:ATHANOR_PALETTE = $palette   # athanor.omp.json elige con esto su paleta
+
     $poshTheme = if ($isAthanor) { 'athanor' } else { 'illusi0n' }
     oh-my-posh init pwsh --config "C:\Users\Martin\.posh\themes\$poshTheme.omp.json" | Invoke-Expression | Out-Null
 
     if ($isAthanor) {
+        $p = (Get-Content "$HOME\.config\athanor\palettes.json" -Raw | ConvertFrom-Json).$palette
         Set-PSReadLineOption -Colors @{
-            Default          = "#FCE8C3"
-            Command          = "#FCE8C3"
-            Parameter        = "#BAA67F"
-            String           = "#98BC37"
-            Operator         = "#0AAEB3"
-            Variable         = "#FED06E"
-            Number           = "#FF5F00"
-            Comment          = "#918175"
-            Error            = "#EF2F27"
-            InlinePrediction = "#918175"
+            Default          = $p.fg
+            Command          = $p.fg
+            Parameter        = $p.ansi[7]
+            String           = $p.ansi[10]
+            Operator         = $p.ansi[6]
+            Variable         = $p.ansi[11]
+            Number           = $p.warn
+            Comment          = $p.dim
+            Error            = $p.ansi[1]
+            InlinePrediction = $p.dim
         }
     } else {
         Set-PSReadLineOption -Colors @{
@@ -61,7 +67,7 @@ function Show-Greeting {
     }
 }
 
-# `theme` lista los temas y cambia entre ellos. Al cambiar rehace prompt, colores y saludo en esta misma
+# `theme` lista los temas y las paletas de athanor y cambia entre ellos. Al cambiar rehace prompt, colores y saludo en esta misma
 # sesion. No recarga el perfil entero: volver a fijar el encoding de la consola dejaba el teclado muerto.
 function theme {
     if (& "$HOME\.config\athanor\theme.ps1" @args) {
