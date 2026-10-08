@@ -91,12 +91,32 @@ el reloj, la fecha, la hora planetaria y la fase de la luna. Después queda el p
   o la noche), Luna (iluminación), Terra (disco) y Aqua (memoria) y la carta del día (arcano mayor fijo
   por fecha).
 - Atajos en las dos terminales: Ctrl+T pestaña nueva, Ctrl+W cerrar, Ctrl+Shift+T reabrir la última.
-- Solo se muestra en WezTerm y Windows Terminal, y si la ventana tiene al menos 120x43 celdas (en splits chicos se saltea).
+- Se muestra en WezTerm, Windows Terminal y sesiones de OpenSSH, y si la ventana tiene al menos 120x43 celdas (en splits chicos se saltea).
 - El reloj es la hora de apertura; no se actualiza.
 - Amanecer y atardecer se calculan para Buenos Aires; cambiar `-Lat` y `-Lon` en `splash.ps1`.
 - Para sumar imágenes: dejar el archivo en `plates/` y correr `scripts\make-splash.ps1`.
 - Las imágenes miden 520x640 px: 512x640 de dibujo (64x40 celdas de 8x16) más una columna de 8 px en el
   color de fondo, que tapa la celda que WezTerm deja vacía en la esquina inferior derecha.
+
+#### Por SSH (Termius y otros clientes)
+
+En una sesión de OpenSSH el perfil también usa `athanor`: el servidor manda el prompt, los colores de PSReadLine
+y el splash; la fuente, el fondo y la paleta base los pone el cliente.
+
+- Sin protocolo de imágenes, el grabado lo dibuja [chafa](https://hpjansson.org/chafa/) con caracteres y color
+  de 24 bits (`winget install chafa`). Sin chafa sale solo el panel de texto.
+- Alcanza con 120x34 celdas: si la ventana tiene menos de 43 filas, el grabado se achica.
+- El grabado se dibuja un 25 % más ancho (80 columnas) porque las celdas del cliente suelen ser más angostas
+  que las de 8x16, y los paneles de texto se corren lo mismo; la tercera columna pide entonces 178 columnas.
+  Se regula con `$env:ATHANOR_SSH_WIDEN` en el perfil, antes del saludo (`1.0` = sin ensanchar).
+- Para que la sesión abra pwsh 7 en vez de Windows PowerShell (requiere administrador):
+
+  ```powershell
+  Set-ItemProperty 'HKLM:\SOFTWARE\OpenSSH' -Name DefaultShell -Value 'C:\Program Files\PowerShell\7\pwsh.exe'
+  ```
+
+- Pegar imágenes del portapapeles (Alt+V en Claude Code) no funciona por SSH: el portapapeles que se lee es
+  el del servidor.
 
 ### 4. Imágenes de escritorio y bloqueo
 
@@ -130,6 +150,7 @@ winget install ImageMagick.ImageMagick
 
 - La pantalla de inicio de sesión solo admite cambiar la imagen; el reloj y la caja de contraseña no se pueden reubicar ni restilizar.
 - Termius (10.1.3) no admite temas ni fuentes propias; lo más cercano es el tema Flexoki Dark o Gruvbox Dark.
+  El prompt y el splash sí llegan por SSH (ver "Por SSH").
 - Falta el tiling con bordes y las barras (GlazeWM o komorebi, más Zebar o YASB).
 
 ## Créditos

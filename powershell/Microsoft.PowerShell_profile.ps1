@@ -11,12 +11,12 @@ Clear-Host
 # --- Oh My Posh ---
 # El tema elegido con `theme` se guarda en ~\.config\athanor\theme (athanor o illusi0n) y, para athanor,
 # la paleta en ~\.config\athanor\palette (srcery, umber, vellum, orpiment o cinnabar; ver palettes.json).
-# athanor solo aplica en WezTerm y Windows Terminal; VS Code y SSH siguen siempre con illusi0n.
+# athanor aplica en WezTerm, Windows Terminal y sesiones de OpenSSH; VS Code sigue siempre con illusi0n.
 # Set-ShellTheme aplica prompt y colores de PSReadLine segun el tema guardado y devuelve si es athanor.
 function Set-ShellTheme {
     $name = Get-Content "$HOME\.config\athanor\theme" -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $name) { $name = 'athanor' }
-    $isAthanor = $name -eq 'athanor' -and $env:TERM_PROGRAM -ne 'vscode' -and ($env:TERM_PROGRAM -eq 'WezTerm' -or $env:WT_SESSION)
+    $isAthanor = $name -eq 'athanor' -and $env:TERM_PROGRAM -ne 'vscode' -and ($env:TERM_PROGRAM -eq 'WezTerm' -or $env:WT_SESSION -or $env:SSH_CONNECTION)
 
     $palette = Get-Content "$HOME\.config\athanor\palette" -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $palette) { $palette = 'srcery' }
@@ -58,7 +58,7 @@ function Set-ShellTheme {
 $athanor = Set-ShellTheme
 
 # Con athanor va el splash de grabados; con illusi0n, anifetch.
-# En la terminal integrada de VS Code o en una sesión de OpenSSH no se muestra ninguno.
+# En la terminal integrada de VS Code no se muestra ninguno; por OpenSSH, solo el splash (anifetch no).
 function Show-Greeting {
     if ($global:athanor) {
         & "$HOME\.config\athanor\splash.ps1"

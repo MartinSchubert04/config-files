@@ -41,7 +41,7 @@ New-Item -ItemType Directory -Force ~\.posh\themes
 Copy-Item oh-my-posh\*.omp.json ~\.posh\themes\
 ```
 
-El perfil usa `athanor` (paleta Srcery) en WezTerm y Windows Terminal, e `illusi0n` en VS Code y SSH.
+El perfil usa `athanor` (paleta Srcery) en WezTerm, Windows Terminal y sesiones de OpenSSH, e `illusi0n` en VS Code.
 `athanor` suma versión de Python y Node, código de error, duración del comando y hora a la derecha.
 
 ## Fastfetch + Anifetch

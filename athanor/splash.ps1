@@ -4,6 +4,8 @@ param(
     [double]$Lat = -34.60,   # Buenos Aires; se usa para amanecer/atardecer
     [double]$Lon = -58.38,
     [string]$Image = $env:ATHANOR_IMAGE,   # nombre sin extension para fijar una imagen (pruebas)
+    # Por SSH: cuanto ensanchar el grabado si las celdas del cliente son mas angostas que 1:2 (1.0 = sin ensanchar)
+    [double]$SshWiden = $(if ($env:ATHANOR_SSH_WIDEN) { [double]$env:ATHANOR_SSH_WIDEN } else { 1.25 }),
     [switch]$Force
 )
 
@@ -12,10 +14,22 @@ $PanelCol = 71                    # columna donde arranca el panel derecho
 $MinCols = 120; $MinRows = 43
 
 # WezTerm muestra el PNG con el protocolo de iTerm2; Windows Terminal, el .six con Sixel.
-$term = if ($env:TERM_PROGRAM -eq 'WezTerm') { 'wezterm' } elseif ($env:WT_SESSION) { 'wt' } else { '' }
+# Por SSH (Termius y similares) no hay protocolo de imagenes: chafa dibuja el PNG con caracteres.
+$term = if ($env:TERM_PROGRAM -eq 'WezTerm') { 'wezterm' } elseif ($env:WT_SESSION) { 'wt' } elseif ($env:SSH_CONNECTION) { 'ssh' } else { '' }
 if (-not $term) { if ($Force) { $term = 'wezterm' } else { return } }
 $size = $Host.UI.RawUI.WindowSize
+# El grabado de chafa se puede achicar: por SSH alcanza con que entre el panel de texto.
+if ($term -eq 'ssh') { $MinRows = 34 }
 if ($size.Width -lt $MinCols -or $size.Height -lt $MinRows) { return }
+# $shift: columnas que se ensancha el grabado por SSH; los paneles de texto se corren lo mismo.
+$shift = 0; $chafaCols = $ImgCols
+if ($term -eq 'ssh') {
+    $ImgRows = [Math]::Min($ImgRows, $size.Height - 3)
+    $chafaCols = [int][Math]::Round($ImgRows * 1.6 * $SshWiden)
+    $shift = [Math]::Max(0, [Math]::Min($chafaCols - $ImgCols, $size.Width - $MinCols))
+    $chafaCols = [Math]::Min($chafaCols, $ImgCols + $shift)
+    $PanelCol += $shift
+}
 
 $images = @(Get-ChildItem (Join-Path $PSScriptRoot 'splash') -Filter *.png -ErrorAction SilentlyContinue)
 if ($images.Count -eq 0) { return }
@@ -123,10 +137,10 @@ At 26 $PanelCol ($amber + "Day of the $dayPlanet, hour of $hourPlanet")
 $moonLine = if ($phase -in 'new', 'full') { "Moon $phase" } else { "Moon $phase, $([int][Math]::Floor($age)) days old" }
 At 27 $PanelCol ($dim + $moonLine)
 
-for ($r = 1; $r -le $ImgRows; $r++) { At $r ($ImgCols + 4) ($rule + $vt) }
+for ($r = 1; $r -le $ImgRows; $r++) { At $r ($ImgCols + 4 + $shift) ($rule + $vt) }
 
 # --- Tercera columna (solo si la ventana es ancha): sala, ficha del personaje, elementos, carta ---
-$SideCol = 123; $SideWidth = 40
+$SideCol = 123 + $shift; $SideWidth = 40
 if ($size.Width -ge $SideCol + $SideWidth - 1) {
     for ($r = 1; $r -le $ImgRows; $r++) { At $r ($SideCol - 3) ($rule + $vt) }
     $green = Fg $pal.terra; $verdigris = Fg $pal.aqua
@@ -285,10 +299,20 @@ if ($term -eq 'wt') {
             $dst.Save($file, [System.Drawing.Imaging.ImageFormat]::Png); $dst.Dispose()
         }
     }
-    $b64img = [Convert]::ToBase64String([IO.File]::ReadAllBytes($file))
-    # WezTerm deja vacia la ultima celda (abajo a la derecha) de una imagen inline; por eso los PNG miden
-    # 520x640, con una columna extra de 8 px en el color de fondo, y se declaran de 65 columnas.
-    $image = "$e]1337;File=inline=1;width=$($ImgCols + 1);height=$ImgRows;preserveAspectRatio=0;doNotMoveCursor=1:$b64img$([char]7)"
+    if ($term -eq 'ssh') {
+        # Cada fila de chafa se ubica con posicion absoluta, igual que el texto. Sin chafa sale solo el texto.
+        $image = ''
+        if (Get-Command chafa -ErrorAction SilentlyContinue) {
+            $r = 0
+            foreach ($l in @(chafa -f symbols --size "${chafaCols}x$ImgRows" --stretch --colors full --animate off --polite on $file)) { $r++; $image += "$e[$r;1H$l" }
+            $image += $reset
+        }
+    } else {
+        $b64img = [Convert]::ToBase64String([IO.File]::ReadAllBytes($file))
+        # WezTerm deja vacia la ultima celda (abajo a la derecha) de una imagen inline; por eso los PNG miden
+        # 520x640, con una columna extra de 8 px en el color de fondo, y se declaran de 65 columnas.
+        $image = "$e]1337;File=inline=1;width=$($ImgCols + 1);height=$ImgRows;preserveAspectRatio=0;doNotMoveCursor=1:$b64img$([char]7)"
+    }
 }
 Clear-Host
 Write-Host ($sb.ToString() + "$e[H" + $image + "$e[$($ImgRows + 2);1H") -NoNewline
